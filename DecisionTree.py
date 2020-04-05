@@ -1,5 +1,6 @@
 from collections import Counter
 import numpy as np
+from scipy.stats import mode
 
 
 class DecisionTree:
@@ -17,36 +18,92 @@ class DecisionTree:
         def is_leaf(self):
             return self.label is not None
 
-    # def __init__(self):
+    def __init__(self, max_depth=5):
+        self.max_depth = max_depth
+        self.root = None
 
-    # def train(self, X, y):
+    def train(self, data, labels):
+        self.root = self._grow_tree(data, labels, 1)
 
-    # def predict(self, X):
-
-    @staticmethod
-    def _entropy(y):
-        """Takes in the labels of data and compute the entropy."""
-        class_counts = Counter(y).values()
-        class_freq = [n_c / len(y) for n_c in class_counts]
-        return -sum([p_c * np.log2(p_c) for p_c in class_freq])
-
-    @staticmethod
-    def _information_gain(feature_col, y, threshold):
-        """Takes in a feature column, the labels, and a threshold, then computes the information gain of splitting."""
-        entropy_before = DecisionTree._entropy(y)
-        left_idx = feature_col < threshold
+    def _grow_tree(self, data, labels, depth):
+        """Grows tree recursively by splitting on the best feature and threshold."""
+        if depth >= self.max_depth:  # Base case: max depth reached
+            return DecisionTree.Node(label=mode(labels))
+        feature_idx, threshold = self._find_best_split(data, labels)
+        # If it's best not to split
+        if feature_idx is None or threshold is None:
+            return DecisionTree.Node(label=mode(labels))
+        # Split and grow left and right recursively
+        left_idx = data[:, feature_idx] < threshold
         right_idx = ~left_idx
-        left_size = np.sum(left_idx)
-        right_size = np.sum(right_idx)
-        left_entropy = DecisionTree._entropy(y[left_idx])
-        right_entropy = DecisionTree._entropy(y[right_idx])
-        entropy_after = (left_size * left_entropy + right_size * right_entropy) / (left_size + right_size)
-        return entropy_before - entropy_after
+        return DecisionTree.Node(
+            split_rule=(feature_idx, threshold),
+            left=self._grow_tree(data[left_idx], labels[left_idx], depth + 1),
+            right=self._grow_tree(data[right_idx], labels[right_idx], depth + 1)
+        )
+
+    def predict(self, data):
+        return [self._predict_one_point(point) for point in data]
+
+    def _predict_one_point(self, data_point):
+        """Given a data point, traverse the tree to find the best label."""
+        node = self.root
+        while not node.is_leaf():
+            feature_idx, threshold = node.split_rule
+            if data_point[feature_idx] < threshold:
+                node = node.left
+            else:
+                node = node.right
+        return node.label
+
+    @staticmethod
+    def _entropy(class_counts):
+        """Calculate entropy based on class counts."""
+        counts_ls = class_counts.values()
+        class_freq = [n_c / sum(counts_ls) for n_c in counts_ls]
+        return -sum([p_c * np.log2(p_c) if p_c != 0 else 0 for p_c in class_freq])
+
+    @staticmethod
+    def _find_best_split(data, labels):
+        """Finds the best split rule for a node. Returns None if it's best not to split."""
+        n, d = data.shape
+        best_split_rule = (None, None)
+        # Record the entropy before any splitting
+        class_counts = dict(Counter(labels))
+        min_entropy = DecisionTree._entropy(class_counts)
+        # For each feature
+        for feature_idx in range(d):
+            # Sort the feature column
+            col_sorted, y_sorted = zip(*sorted(zip(data[:, feature_idx], labels)))
+            # Initialize left and right class counts
+            left_class_counts = dict.fromkeys(class_counts.keys(), 0)
+            right_class_counts = class_counts.copy()
+            # For each split within a feature
+            for i in range(1, n):
+                # Update class counts at every split
+                cls = y_sorted[i - 1]
+                left_class_counts[cls] += 1
+                right_class_counts[cls] -= 1
+                # Skip equal consecutive values
+                if col_sorted[i] == col_sorted[i - 1]:
+                    continue
+                # Calculate average entropy at this split
+                left_entropy = DecisionTree._entropy(left_class_counts)
+                right_entropy = DecisionTree._entropy(right_class_counts)
+                wa_entropy = (i * left_entropy + (n - i) * right_entropy) / n
+                # Update best split
+                if wa_entropy < min_entropy:
+                    min_entropy = wa_entropy
+                    threshold = (col_sorted[i - 1] + col_sorted[i]) / 2
+                    best_split_rule = (feature_idx, threshold)
+        return best_split_rule
 
 
 if __name__ == "__main__":
+    np.random.seed(42)
+    X = np.random.randint(5, size=(10, 3))
+    y = np.random.randint(2, size=10)
     clf = DecisionTree()
-    y = np.array([0] * 20 + [1] * 10)
-    x = np.array([25] * 10 + [75] * 10 + [25] * 9 + [75])
-    beta = 50
-    print(DecisionTree._information_gain(x, y, beta))
+    clf.train(X, y)
+    print(f"pred={clf.predict(X)}")
+    print(f"true={y}")
