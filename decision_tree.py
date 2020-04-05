@@ -18,12 +18,14 @@ class DecisionTree:
         def is_leaf(self):
             return self.label is not None
 
-    def __init__(self, max_depth=None, max_features=None, random_state=42):
+    def __init__(self, max_depth=None, max_features=None, random_state=42, min_samples_split=2):
         # Hyper-parameters
         self.max_depth = max_depth
         self.max_features = max_features
         self.random_state = random_state
-
+        # The minimum number of samples required to split an internal node
+        self.min_samples_split = min_samples_split
+        # Root node
         self.root = None
 
     def train(self, data, labels):
@@ -35,13 +37,12 @@ class DecisionTree:
             self.max_features = int(sqrt(data.shape[1]))
         # Set random seed
         np.random.seed(self.random_state)
-
         # Grow tree
         self.root = self._grow_tree(data, labels, 1)
 
     def _grow_tree(self, data, labels, depth):
         """Grows tree recursively by splitting on the best feature and threshold."""
-        if self.max_depth and depth >= self.max_depth:  # Base case: max depth reached
+        if self._time_to_stop(depth, data):  # Base case: stopping condition satisfied
             return DecisionTree.Node(label=DecisionTree._mode(labels))
 
         feature_idx, threshold = self._find_best_split(data, labels)
@@ -57,6 +58,11 @@ class DecisionTree:
             left=self._grow_tree(data[left_idx], labels[left_idx], depth + 1),
             right=self._grow_tree(data[right_idx], labels[right_idx], depth + 1)
         )
+
+    def _time_to_stop(self, depth, data):
+        """Stopping condition."""
+        return ((self.max_depth and depth >= depth >= self.max_depth) or  # Max depth is set and reached
+                (len(data) < self.min_samples_split))  # Too few samples to split a node
 
     def _find_best_split(self, data, labels):
         """Finds the best split rule for a node. Returns None if it's best not to split."""
