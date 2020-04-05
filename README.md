@@ -1,5 +1,5 @@
 # My Decision Tree and Random Forest
 
-- Impurity metric: Gini Index
+- Impurity metric: Information Gain
 - Training algorithm: CART
 
