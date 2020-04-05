@@ -94,7 +94,7 @@ class DecisionTree:
         return best_split_rule
 
     def predict(self, data):
-        return [self._predict_one_point(point) for point in data]
+        return np.apply_along_axis(self._predict_one_point, 1, data)
 
     def _predict_one_point(self, data_point):
         """Given a data point, traverse the tree to find the best label."""
@@ -127,6 +127,7 @@ if __name__ == "__main__":
     clf = DecisionTree(max_depth=5)
     clf.train(X, y)
     pred = clf.predict(X)
+    print(f"pred.shape={pred.shape}")
     print(f"pred={pred}")
     print(f"true={y}")
     print(f"acc = {sum(y == pred) / len(y)}")
