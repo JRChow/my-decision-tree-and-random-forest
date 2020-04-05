@@ -1,6 +1,5 @@
 from collections import Counter
 import numpy as np
-from scipy.stats import mode
 
 
 class DecisionTree:
@@ -28,11 +27,11 @@ class DecisionTree:
     def _grow_tree(self, data, labels, depth):
         """Grows tree recursively by splitting on the best feature and threshold."""
         if depth >= self.max_depth:  # Base case: max depth reached
-            return DecisionTree.Node(label=mode(labels))
+            return DecisionTree.Node(label=DecisionTree._mode(labels))
         feature_idx, threshold = self._find_best_split(data, labels)
         # If it's best not to split
         if feature_idx is None or threshold is None:
-            return DecisionTree.Node(label=mode(labels))
+            return DecisionTree.Node(label=DecisionTree._mode(labels))
         # Split and grow left and right recursively
         left_idx = data[:, feature_idx] < threshold
         right_idx = ~left_idx
@@ -98,12 +97,19 @@ class DecisionTree:
                     best_split_rule = (feature_idx, threshold)
         return best_split_rule
 
+    @staticmethod
+    def _mode(ls):
+        """Get the first mode of a list."""
+        return Counter(ls).most_common(1)[0][0]
+
 
 if __name__ == "__main__":
     np.random.seed(42)
     X = np.random.randint(5, size=(10, 3))
     y = np.random.randint(2, size=10)
-    clf = DecisionTree()
+    clf = DecisionTree(max_depth=1)
     clf.train(X, y)
-    print(f"pred={clf.predict(X)}")
+    pred = clf.predict(X)
+    print(f"pred={pred}")
     print(f"true={y}")
+    print(f"acc = {sum(y == pred) / len(y)}")
