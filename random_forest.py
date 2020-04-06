@@ -2,9 +2,10 @@ from random import randrange
 import numpy as np
 from decision_tree import DecisionTree
 from scipy.stats import mode
+from sklearn.base import BaseEstimator
 
 
-class RandomForest:
+class RandomForest(BaseEstimator):
     """The Random Forest ensemble."""
 
     def __init__(self, n_estimators=100, max_depth=None, random_state=42, max_features="auto", min_samples_split=2):
@@ -18,7 +19,7 @@ class RandomForest:
         self.tree_ensemble = None
         self.label_set = None
 
-    def train(self, data, labels):
+    def fit(self, data, labels):
         """Train the Random Forest with data bagging and feature bagging."""
         # Set class member variables
         self.tree_ensemble = []
@@ -31,7 +32,7 @@ class RandomForest:
                                 max_features=self.max_features,
                                 random_state=self.random_state,
                                 min_samples_split=self.min_samples_split)
-            tree.train(sample_data, sample_labels)
+            tree.fit(sample_data, sample_labels)
             self.tree_ensemble.append(tree)
 
     def predict(self, data):
@@ -41,6 +42,10 @@ class RandomForest:
             ensemble_votes.append(tree.predict(data))
         ensemble_votes = np.vstack(ensemble_votes)
         return mode(ensemble_votes, axis=0)[0].ravel()
+
+    def score(self, data, labels):
+        """Return the mean accuracy on the given test data and labels."""
+        return np.sum(labels == self.predict(data)) / len(labels)
 
     @staticmethod
     def _data_bagging(data, labels, sample_size):
@@ -59,8 +64,9 @@ if __name__ == "__main__":
     X = np.random.randint(5, size=(10, 3))
     y = np.random.randint(2, size=10)
     rf = RandomForest(max_depth=10, n_estimators=1000)
-    rf.train(X, y)
+    rf.fit(X, y)
     pred = rf.predict(X)
     print(f"pred = {pred}")
     print(f"true = {y}")
     print(f"acc = {sum(pred == y) / len(y)}")
+    print(f"score = {rf.score(X, y)}")

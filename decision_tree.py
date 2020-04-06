@@ -1,9 +1,10 @@
 from collections import Counter
 import numpy as np
 from math import sqrt
+from sklearn.base import BaseEstimator
 
 
-class DecisionTree:
+class DecisionTree(BaseEstimator):
     """The Decision Tree classifier."""
 
     class Node:
@@ -28,7 +29,7 @@ class DecisionTree:
         # Root node
         self.root = None
 
-    def train(self, data, labels):
+    def fit(self, data, labels):
         """Train the decision tree by growing the tree."""
         # Set number of features to consider when looking for best fit
         if self.max_features is None:
@@ -37,7 +38,7 @@ class DecisionTree:
             self.max_features = int(sqrt(data.shape[1]))
         # Set random seed
         np.random.seed(self.random_state)
-        # Grow tree
+        # Grow tree recursively
         self.root = self._grow_tree(data, labels, 1)
 
     def _grow_tree(self, data, labels, depth):
@@ -102,16 +103,26 @@ class DecisionTree:
     def predict(self, data):
         return np.apply_along_axis(self._predict_one_point, 1, data)
 
-    def _predict_one_point(self, data_point):
+    def _predict_one_point(self, data_point, verbose=False, feature_names=None, class_names=None):
         """Given a data point, traverse the tree to find the best label."""
         node = self.root
         while not node.is_leaf():
             feature_idx, threshold = node.split_rule
             if data_point[feature_idx] < threshold:
+                if verbose and feature_names:
+                    print(f"{feature_names[feature_idx]} < {threshold}")
                 node = node.left
             else:
+                if verbose and feature_names:
+                    print(f"{feature_names[feature_idx]} >= {threshold}")
                 node = node.right
+        if verbose and class_names:
+            print(f"this point is labelled {class_names[node.label]}")
         return node.label
+
+    def score(self, data, labels):
+        """Return the mean accuracy on the given test data and labels."""
+        return np.sum(labels == self.predict(data)) / len(labels)
 
     @staticmethod
     def _entropy(class_counts):
@@ -131,7 +142,7 @@ if __name__ == "__main__":
     X = np.random.randint(5, size=(10, 3))
     y = np.random.randint(2, size=10)
     clf = DecisionTree(max_depth=5)
-    clf.train(X, y)
+    clf.fit(X, y)
     pred = clf.predict(X)
     print(f"pred.shape={pred.shape}")
     print(f"pred={pred}")
